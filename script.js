@@ -44,7 +44,7 @@ ui.btn.addEventListener('click', async () => {
         setActiveBox('unloaded');
         ui.mainVal.innerText = "---";   // إخفاء الرقم من الشاشة الرئيسية
         ui.mainUnit.innerText = "PING"; 
-        ui.status.innerText = "جاري مسح الخوادم المحلية للبحث عن أقل استجابة...";
+        ui.status.innerText = "جاري فحص البنق...";
         ui.btn.innerText = "جاري الفحص...";
         
         const purePing = await measureLocalPing();
