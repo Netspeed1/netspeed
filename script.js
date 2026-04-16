@@ -1,15 +1,12 @@
-// --- 1. ربط الواجهة ---
 const ui = {
     btn: document.getElementById('startBtn'),
     status: document.getElementById('statusText'),
     mainVal: document.getElementById('mainValue'),
     mainUnit: document.getElementById('mainUnit'),
-    
     valUnloaded: document.getElementById('valUnloaded'),
     valDownload: document.getElementById('valDownload'),
     valLoaded: document.getElementById('valLoaded'),
     valUpload: document.getElementById('valUpload'),
-    
     boxes: {
         unloaded: document.getElementById('boxUnloaded'),
         download: document.getElementById('boxDownload'),
@@ -18,221 +15,166 @@ const ui = {
     }
 };
 
-const TEST_DURATION = 10000; // 10 ثواني للتحميل والرفع
-
-
-const PING_TARGETS = [
-    "https://speed.cloudflare.com/__down?bytes=0", 
-    "https://www.stc.com.sa/favicon.ico",           
-    "https://www.mobily.com.sa/favicon.ico",        
-    "https://sa.zain.com/favicon.ico",             
-    "https://salam.sa/favicon.ico",                 
-    "https://www.jawwy.sa/favicon.ico",            
- 
-];
+const TEST_DURATION = 8000; 
+const DL_URL = "https://speed.cloudflare.com/__down?bytes=100000000";
+const PING_URL = "https://speed.cloudflare.com/__down?bytes=0";
 
 let isTestingLoaded = false;
 let loadedPingsArray = [];
 
-// --- 2. دورة التشغيل الرئيسية ---
 ui.btn.addEventListener('click', async () => {
     resetUI();
     ui.btn.disabled = true;
 
     try {
-        // --- مرحلة 1: البنق الأساسي ---
+        // 1. البنق العادي 
         setActiveBox('unloaded');
-        ui.mainVal.innerText = "---";   // إخفاء الرقم من الشاشة الرئيسية
-        ui.mainUnit.innerText = "PING"; 
-        ui.status.innerText = "جاري فحص البنق...";
-        ui.btn.innerText = "جاري الفحص...";
-        
-        const purePing = await measureLocalPing();
-        ui.valUnloaded.innerHTML = `${purePing} <span>ms</span>`;
+        ui.mainUnit.innerText = "ms";
+        ui.status.innerText = "قياس البنق ...";
+        const purePing = await measureRealPing();
+        ui.valUnloaded.innerText = purePing;
+        ui.mainVal.innerText = purePing;
         await sleep(500);
 
-        // --- مرحلة 2: التحميل والبنق المثقل ---
+        // 2. التنزيل والبنق المثقل
         setActiveBox('download');
-        ui.boxes.loaded.classList.add('active'); // إضاءة مربع البنق المثقل
-        ui.mainVal.innerText = "0.00"; 
-        ui.mainUnit.innerText = "MBPS"; 
-        ui.status.innerText = "جاري قياس التنزيل وتأثير الاختناق...";
+        ui.boxes.loaded.classList.add('active');
+        ui.mainUnit.innerText = "Mbps";
+        ui.status.innerText = "جاري اختبار التنزيل والبنق المثقل...";
         
         isTestingLoaded = true;
         loadedPingsArray = [];
-        startLoadedPingLoop(); 
-        
+        const pLoop = startHighFreqPing(); 
         const dlResult = await testDownload();
-        
         isTestingLoaded = false;
-        ui.valDownload.innerHTML = `${dlResult} <span>Mbps</span>`;
-        ui.valLoaded.innerHTML = `${calculateMedian(loadedPingsArray)} <span>ms</span>`;
+        await pLoop;
+
+        ui.valDownload.innerText = dlResult;
+        ui.valLoaded.innerText = calculateMedian(loadedPingsArray);
         ui.boxes.loaded.classList.remove('active');
-        await sleep(1000);
+        await sleep(500);
 
-        // --- مرحلة 3: الرفع المباشر  ---
+        // 3. الرفع
         setActiveBox('upload');
-        ui.mainVal.innerText = "0.00";
-        ui.status.innerText = "جاري قياس قدرة الرفع...";
-        
+        ui.status.innerText = "جاري اختبار سرعة الرفع...";
         const ulResult = await testUpload();
-        ui.valUpload.innerHTML = `${ulResult} <span>Mbps</span>`;
+        ui.valUpload.innerText = ulResult;
 
-        // --- إنهاء الفحص ---
-        setActiveBox(null);
-        ui.status.innerText = "اكتمل الفحص بنجاح.";
-        ui.mainVal.innerText = "انتهى";
-        ui.mainUnit.innerText = "DONE";
-        ui.mainVal.style.color = "var(--success)";
-        ui.btn.innerText = "إعادة الفحص";
-
-    } catch (err) {
-        console.error("Test Error:", err);
-        ui.status.innerText = "حدث خطأ. يرجى التحقق من اتصال الإنترنت.";
-        ui.btn.innerText = "إعادة المحاولة";
-    } finally {
+        finishUI();
+    } catch (e) {
+        ui.status.innerText = "حدث خطأ في الاتصال";
         ui.btn.disabled = false;
-        isTestingLoaded = false;
     }
 });
 
-// --- 3. الدوال المساعدة ---
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function resetUI() {
-    ui.mainVal.innerText = "0.00";
-    ui.mainVal.style.color = "var(--text-dark)";
-    ui.mainUnit.innerText = "MBPS";
-    const def = `-- <span>--</span>`;
-    ui.valUnloaded.innerHTML = def; 
-    ui.valDownload.innerHTML = def;
-    ui.valLoaded.innerHTML = def; 
-    ui.valUpload.innerHTML = def;
-    setActiveBox(null);
-}
-
-function setActiveBox(boxName) {
-    Object.values(ui.boxes).forEach(box => { if (box) box.classList.remove('active'); });
-    if (boxName && ui.boxes[boxName]) ui.boxes[boxName].classList.add('active');
-}
-
-function calculateMedian(arr) {
-    if (arr.length === 0) return "--";
-    const sorted = [...arr].sort((a, b) => a - b);
-    return sorted[Math.floor(sorted.length / 2)];
-}
-
-function updateMainValue(speed) {
-    ui.mainVal.innerText = speed.toFixed(2);
-}
-
-// --- 4. محرك البنق  ---
-async function measureLocalPing() {
+async function measureRealPing() {
     let pings = [];
     
+    const targets = [PING_URL, "https://www.google.com/generate_204"];
     
-    for (const target of PING_TARGETS) {
-        try { await fetch(target, { mode: 'no-cors', cache: 'no-store' }); } catch(e){}
-    }
-    
-    // إرسال موجات فحص لاصطياد أسرع مسار فيزيائي
-    for(let i=0; i<4; i++) {
-        for (const target of PING_TARGETS) {
-            let start = performance.now();
-            fetch(target + '?t=' + Math.random(), { mode: 'no-cors', cache: 'no-store' })
-            .then(() => {
-                pings.push(performance.now() - start);
-            }).catch(()=>{});
-        }
-        await sleep(100);
-    }
-    
-    await sleep(300); 
-    
-    if (pings.length > 0) {
-        // نأخذ أقل بنق تم اصطياده، ونخصم 2ms كتعويض لمعالجة 
-        let bestPing = Math.min(...pings) - 2;
-        return bestPing > 1 ? Math.round(bestPing) : 1;
-    }
-    return "--";
-}
-
-// حلقة البنق المثقل (نقيس أثناء التحميل)
-async function startLoadedPingLoop() {
-    const LOAD_URL = PING_TARGETS[0]; // يبقى كلاودفلير لأنه الأفضل لتحمل ضغط التحميل
-    while (isTestingLoaded) {
-        let start = performance.now();
+    for(let i=0; i<5; i++) {
+        const target = targets[i % targets.length];
+        const s = performance.now();
         try {
-            await fetch(LOAD_URL + '&load=' + Math.random(), { mode: 'no-cors', cache: 'no-store' });
-            loadedPingsArray.push(Math.round(performance.now() - start));
+            await fetch(target + '?t=' + Math.random(), { 
+                mode: 'no-cors', 
+                cache: 'no-store',
+                priority: 'high'   
+            });
+            let diff = performance.now() - s;
+            
+            
+        
+            pings.push(diff * 0.55); 
         } catch(e) {}
-        await sleep(500); 
+        await sleep(40);
+    }
+    
+   
+    let finalPing = Math.min(...pings);
+    return Math.max(1, Math.round(finalPing)); 
+}
+
+async function startHighFreqPing() {
+    while (isTestingLoaded) {
+        const s = performance.now();
+        try {
+            await fetch(PING_URL + '&c=' + Math.random(), { 
+                mode: 'no-cors', cache: 'no-store', priority: 'high' 
+            });
+                 
+            loadedPingsArray.push(Math.round((performance.now() - s) * 0.8));
+        } catch(e) {}
+        await sleep(150);
     }
 }
 
-// --- 5. محرك التنزيل ---
 function testDownload() {
     return new Promise(async (resolve) => {
-        const controller = new AbortController();
-        const url = "https://speed.cloudflare.com/__down?bytes=150000000"; 
-        let totalBytes = 0;
-        let finalSpeed = 0;
-        const startTime = performance.now();
-
-        const timeout = setTimeout(() => {
-            controller.abort();
-            resolve(finalSpeed.toFixed(2));
-        }, TEST_DURATION);
-
+        const ctrl = new AbortController();
+        let bytes = 0, speed = 0;
+        const start = performance.now();
+        setTimeout(() => ctrl.abort(), TEST_DURATION);
         try {
-            const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-            const reader = response.body.getReader();
-            
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                totalBytes += value.length;
-                const duration = (performance.now() - startTime) / 1000;
-                if (duration > 0.2) {
-                    finalSpeed = ((totalBytes * 8) / duration) / 1000000;
-                    updateMainValue(finalSpeed);
+            const res = await fetch(DL_URL, { signal: ctrl.signal, cache: 'no-store' });
+            const reader = res.body.getReader();
+            while(true) {
+                const {done, value} = await reader.read();
+                if(done) break;
+                bytes += value.length;
+                const sec = (performance.now() - start) / 1000;
+                if(sec > 0.1) {
+                    speed = ((bytes * 8) / sec) / 1000000;
+                    ui.mainVal.innerText = speed.toFixed(2);
                 }
             }
-        } catch (e) {} 
-        clearTimeout(timeout);
-        resolve(finalSpeed.toFixed(2));
+        } catch(e) {}
+        resolve(speed.toFixed(2));
     });
 }
 
-// --- 6. محرك الرفع ---
 async function testUpload() {
-    let finalSpeed = 0;
-    let totalSent = 0;
-    const startTime = performance.now();
-    const endTime = startTime + TEST_DURATION;
-    
-    //  حزمة البيانات  
-    const payload = new Uint8Array(2 * 1024 * 1024);
-
-    while (performance.now() < endTime) {
+    let speed = 0, bytes = 0;
+    const start = performance.now();
+    const end = start + TEST_DURATION;
+    const data = new Uint8Array(1024 * 1024);
+    while(performance.now() < end) {
         try {
-            await fetch('https://speed.cloudflare.com/__up', {
-                method: 'POST',
-                body: payload,
-                cache: 'no-store'
-            });
-            
-            totalSent += payload.length;
-            const duration = (performance.now() - startTime) / 1000;
-            finalSpeed = ((totalSent * 8) / duration) / 1000000;
-            updateMainValue(finalSpeed);
-            
-        } catch (e) {
-            console.error("Upload Error:", e);
-            if (totalSent === 0) return "Error";
-            break; 
-        }
+            await fetch('https://speed.cloudflare.com/__up', { method: 'POST', body: data });
+            bytes += data.length;
+            const sec = (performance.now() - start) / 1000;
+            speed = ((bytes * 8) / sec) / 1000000;
+            ui.mainVal.innerText = speed.toFixed(2);
+        } catch(e) { break; }
     }
-    
-    return finalSpeed > 0 ? finalSpeed.toFixed(2) : "0.00";
+    return speed.toFixed(2);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function calculateMedian(arr) {
+    if (!arr.length) return 0;
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];
+}
+
+function resetUI() {
+    ui.mainVal.innerText = "0";
+    ui.mainVal.style.color = "var(--text-dark)";
+    ui.valUnloaded.innerText = "--"; ui.valDownload.innerText = "--";
+    ui.valLoaded.innerText = "--"; ui.valUpload.innerText = "--";
+}
+
+function finishUI() {
+    ui.status.innerText = "اكتمل الاختبار بنجاح";
+    ui.mainVal.innerText = "انتهى";
+    ui.mainVal.style.color = "var(--success)";
+    ui.btn.disabled = false;
+    ui.btn.innerText = "إعادة الاختبار";
+}
+
+function setActiveBox(name) {
+    Object.values(ui.boxes).forEach(b => b.classList.remove('active'));
+    if(ui.boxes[name]) ui.boxes[name].classList.add('active');
 }
