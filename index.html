@@ -3,19 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أداة تشخيص جودة الشبكة |</title>
-
-    <link rel="preconnect" href="https://speed.cloudflare.com" crossorigin>
-    <link rel="dns-prefetch" href="https://speed.cloudflare.com">
-    <link rel="preconnect" href="https://www.stc.com.sa" crossorigin>
-    <link rel="preconnect" href="https://www.mobily.com.sa" crossorigin>
-    <link rel="preconnect" href="https://sa.zain.com" crossorigin>
-    <link rel="preconnect" href="https://salam.sa" crossorigin>
-    <link rel="preconnect" href="https://www.jawwy.sa" crossorigin>
-    
+    <title>أداة قياس جودة الاتصال</title>
 
     <style>
-        
         :root {
             --bg-body: #f8f9fa;
             --bg-surface: #ffffff;
@@ -54,50 +44,34 @@
         }
 
         .header-titles h1 {
-            font-size: 24px;
-            font-weight: 600;
+            font-size: 26px;
+            font-weight: 700;
             margin: 0 0 5px 0;
-            color: var(--text-dark);
         }
 
-        .header-titles p {
-            font-size: 14px;
-            color: var(--text-gray);
-            margin: 0;
-        }
-
-        /* --- الشاشة العلوية --- */
         .live-monitor {
             text-align: center;
-            padding: 40px 0;
+            padding: 45px 0;
             margin-bottom: 30px;
             border-bottom: 1px solid var(--border-color);
             border-top: 1px solid var(--border-color);
-            background-color: #f8f9fa;
+            background-color: #fcfcfc;
             border-radius: 8px;
         }
 
         .live-val {
-            font-size: 80px;
+            font-size: 90px;
             font-weight: 300;
             line-height: 1;
-            letter-spacing: -2px;
-            color: var(--text-dark);
-            transition: color 0.3s ease;
-            /* 2. تحسينات الأداء */
-            will-change: contents; 
         }
 
         .live-unit {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             color: var(--text-gray);
-            text-transform: uppercase;
             margin-top: 5px;
-            letter-spacing: 1px;
         }
 
-        /* --- البطاقات السفلية --- */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -108,44 +82,41 @@
         .data-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px 10px;
+            border-radius: 10px;
+            padding: 25px 10px;
             text-align: center;
             transition: all 0.2s ease;
-            /* 2. تحسينات الأداء: سلاسة الحركات الانتقالية */
-            will-change: transform, border-color, background-color; 
         }
 
         .data-card.active {
             border-color: var(--primary);
             background: #e8f0fe;
-            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15);
         }
 
         .card-label {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--text-gray);
             margin-bottom: 12px;
         }
 
+        
         .card-val {
-            font-size: 26px;
-            font-weight: 700;
-            color: var(--text-dark);
+            font-size: 32px; 
+            font-weight: 800;
             display: flex;
             justify-content: center;
             align-items: baseline;
             gap: 4px;
+            direction: ltr;
         }
 
         .card-val span {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 500;
             color: var(--text-gray);
         }
 
-        /* --- أزرار التحكم --- */
         .controls-wrapper {
             text-align: center;
         }
@@ -154,77 +125,71 @@
             background-color: var(--primary);
             color: #ffffff;
             border: none;
-            padding: 16px 48px;
+            padding: 18px 48px;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
             width: 100%;
-            max-width: 300px;
-            font-family: inherit;
+            max-width: 320px;
         }
 
-        .btn-start:hover { background-color: #1557b0; }
-        .btn-start:disabled { background-color: var(--border-color); color: var(--text-gray); cursor: not-allowed; }
+        .btn-start:disabled { background-color: var(--border-color); cursor: not-allowed; }
 
         .sys-status {
             margin-top: 15px;
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-gray);
-            font-weight: 500;
         }
 
-        /* التجاوب مع الجوال */
         @media (max-width: 768px) {
             .cards-grid { grid-template-columns: repeat(2, 1fr); }
-            .live-val { font-size: 60px; }
+            .live-val { font-size: 65px; }
+            .card-val { font-size: 28px; }
         }
     </style>
 </head>
 <body>
 
     <div class="dashboard-container">
-        
         <div class="header-titles">
-            <h1>اختبار سرعة النت </h1>
-            <p>القياس يتم عبر خوادم  (Edge Nodes)</p>
+            <h1>اختبار سرعة الإنترنت</h1>
+       
         </div>
 
         <div class="live-monitor">
-            <div class="live-val" id="mainValue">0.00</div>
+            <div class="live-val" id="mainValue">0</div>
             <div class="live-unit" id="mainUnit">Mbps</div>
         </div>
 
         <div class="cards-grid">
             <div class="data-card" id="boxUnloaded">
-                <div class="card-label">البنق الأساسي</div>
-                <div class="card-val" id="valUnloaded">-- <span>ms</span></div>
+                <div class="card-label">البنق </div>
+                <div class="card-val"><span id="valUnloaded">--</span> <span>ms</span></div>
             </div>
             
             <div class="data-card" id="boxDownload">
                 <div class="card-label">التنزيل</div>
-                <div class="card-val" id="valDownload">-- <span>Mbps</span></div>
+                <div class="card-val"><span id="valDownload">--</span> <span>Mbps</span></div>
             </div>
 
             <div class="data-card" id="boxLoaded">
                 <div class="card-label">البنق المثقل</div>
-                <div class="card-val" id="valLoaded">-- <span>ms</span></div>
+                <div class="card-val"><span id="valLoaded">--</span> <span>ms</span></div>
             </div>
 
             <div class="data-card" id="boxUpload">
                 <div class="card-label">الرفع</div>
-                <div class="card-val" id="valUpload">-- <span>Mbps</span></div>
+                <div class="card-val"><span id="valUpload">--</span> <span>Mbps</span></div>
             </div>
         </div>
 
         <div class="controls-wrapper">
-            <button class="btn-start" id="startBtn">بدء الفحص</button>
-            <div class="sys-status" id="statusText">جاهز لإجراء القياس </div>
+            <button class="btn-start" id="startBtn">بدء الاختبار</button>
+            <div class="sys-status" id="statusText">جاهز للفحص</div>
         </div>
-
     </div>
 
-    <script src="script.js" defer></script>
+    <script src="script.js"></script>
 </body>
 </html>
