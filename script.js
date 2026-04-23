@@ -29,7 +29,7 @@ ui.btn.addEventListener('click', async () => {
     try {
         setActiveBox('unloaded');
         ui.mainUnit.innerText = "ms";
-        ui.status.innerText = "قياس الاستجابة الصافية للشبكة...";
+        ui.status.innerText = "قياس البنق  ...";
         const purePing = await measureRealPing();
         ui.valUnloaded.innerText = purePing;
         ui.mainVal.innerText = purePing;
@@ -38,7 +38,7 @@ ui.btn.addEventListener('click', async () => {
         setActiveBox('download');
         ui.boxes.loaded.classList.add('active');
         ui.mainUnit.innerText = "Mbps";
-        ui.status.innerText = "جاري فحص التنزيل والتحميل المثقل...";
+        ui.status.innerText = "جاري فحص التنزيل والبنق تحت الضغط...";
         
         isTestingLoaded = true;
         loadedPingsArray = [];
